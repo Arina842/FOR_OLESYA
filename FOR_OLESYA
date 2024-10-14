@@ -17,7 +17,8 @@ action.append('TerminateCondition')
 print(len(action))
 
 
-
+action_changed=[]
+action.extend(['True', '', '', 'True', '','True',' ','True','','','True'])
 
 
 # trajectory_consolidation = [' ','Consolidation','Consolidation','Consolidation','Consolidation','Consolidation']
