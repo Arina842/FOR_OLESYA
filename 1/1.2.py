@@ -99,6 +99,8 @@ def start():
 
 
 start_data = start()
+# for i in start_data.keys():
+#     start_data[i] = list(start_data[i])
 
 
 # def deviator(start_data, strain, strain_rad, deviator, connection_to_curve_indexes):
@@ -228,41 +230,35 @@ start_data = start()
 # print(data)
 #
 #
-def create_excel_from_dict_list(data: list, output_filename: str, sheet_name='Sheet1'):
-    # Создаем директорию, если она не существует
-    if not os.path.exists('excel_files'):
-        os.makedirs('excel_files')
-
-    filepath = os.path.join('excel_files', output_filename)
-
-    # Создаем новую книгу Excel
-    wb = Workbook()
-    ws = wb.active
-
-    ws.title = sheet_name
-
-    # Записываем данные из списка словарей в Excel
-
-    header = data.keys()
-    if data:
-        ws.append(header)
-        for i in range(len(header)):
-            a = list(data[header[i]])
-            ws.append(a)
-        for i, statN in enumerate(dict):
-            ws.cell(row=1, column=i + 1).value = statN
-        wb.save('some.xlsx')
-        # k=1
-        # for header in data:
-        #     ws.append([header[k] for k in header])
-
-    wb.save(filepath)
-    return filepath
+# def create_excel_from_dict_list(data: list, output_filename: str, sheet_name='Sheet1'):
+#     # Создаем директорию, если она не существует
+#     if not os.path.exists('excel_files'):
+#         os.makedirs('excel_files')
+#
+#     filepath = os.path.join('excel_files', output_filename)
+#
+#     # Создаем новую книгу Excel
+#     wb = Workbook()
+#     ws = wb.active
+#
+#     ws.title = sheet_name
+#
+#     # Записываем данные из списка словарей в Excel
+#
+#     header = data.keys()
+#     if data:
+#         ws.append(header)
+#         for i in range(len(header)):
+#             a = list(data[header[i]])
+#             ws.append(a)
+#
+#     wb.save(filepath)
+#     return filepath
 
 
 print(type(start_data))
-print(start_data.keys())
-create_excel_from_dict_list(start_data, 'рпd.xlsx')
+print(start_data)
+# create_excel_from_dict_list(start_data, 'рпd.xlsx')
 # print(start["Time"])
 # print(start["Action"])
 # print(start["Action_Changed"])
