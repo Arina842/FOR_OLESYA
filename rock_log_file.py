@@ -162,7 +162,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
             "Time": time,
             "Action": action,
             "Action_Changed": action_changed,
-            "MeanVerticalDeformation_mm": np.round((vertical_deformation1_mm - vertical_deformation2_mm) / 2, 3),
+            "MeanVerticalDeformation_mm": np.round((vertical_deformation1_mm + vertical_deformation2_mm) / 2, 3),
             "RadialDeformation_mm": radial_deformation_mm,
             "CellPress_MPa": cell_press,
             "VerticalForce_kN": vertical_force,
@@ -204,12 +204,12 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
         else:
             action = np.array(['WaitLimit'] * time.size)
         action_changed = np.array([''] * (time.size - 1) + ['True'])
-        vert_strain = strain + start_dict['VerticalStrain'].tolist()[-1] + np.random.uniform(0.001, 0.02)
+        vert_strain = strain + start_dict['VerticalStrain'].tolist()[-1] + np.random.uniform(0.001, 0.009)
         radial_strain = strain_rad + start_dict['RadialStrain'].tolist()[-1] + np.random.uniform(0.001, 0.02)
         radial_deformation_mm = radial_strain * sample_diameter
-        vert_force = deviator + start_dict["VerticalForce_kN"].tolist()[-1] + np.random.uniform(0.001, 0.02)
+        vert_force = deviator + start_dict["VerticalForce_kN"].tolist()[-1] + np.random.uniform(0.001, 0.009)
         vertical_deformation2_mm = np.linspace(0.014 + np.random.uniform(0.001, 0.01),
-                                               ((np.max(vert_strain * sample_height)) / 6), time.size)
+                                               ((np.max(vert_strain * sample_height)) / 4), time.size)
 
         vertical_deformation1_mm = vert_strain * sample_height - vertical_deformation2_mm
         data = {
@@ -217,7 +217,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
             "Action": action,
             "Action_Changed": action_changed,
 
-            "MeanVerticalDeformation_mm": np.round((vertical_deformation1_mm - vertical_deformation2_mm) / 2, 3),
+            "MeanVerticalDeformation_mm": np.round((vertical_deformation1_mm + vertical_deformation2_mm) / 2, 3),
             "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
             "CellPress_MPa": np.full(time.size, sigma_3_MPa + 0.001),
             "VerticalForce_kN": np.round(vert_force, 3),
