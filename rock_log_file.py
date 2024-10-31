@@ -52,9 +52,9 @@ deviator_numpy_array = np.array([0., 1046.9699, 2093.9398, 3140.9097, 4187.8796,
                                  15704.5485, 16751.5184, 17798.4883, 18845.4582, 19892.4281, 20939.398,
                                  19892.429, 18845.4591, 17798.4892, 16751.5193, 15704.5494, 14657.5795,
                                  13610.6096, 12563.6397, 11516.6698, 10469.6999, 9422.73])
-reload_points_rad_numpy_array = [None,  None]
+reload_points_rad_numpy_array = [9,  18]
 # Обрезка тестовых данных
-if reload_points_rad_numpy_array[0] and reload_points_rad_numpy_array[0] is not None:
+if reload_points_rad_numpy_array is not [None,  None]:
     strain_numpy_array = strain_numpy_array[:reload_points_rad_numpy_array[1]]
     strain_rad_numpy_array = strain_rad_numpy_array[:reload_points_rad_numpy_array[1]]
     deviator_numpy_array = deviator_numpy_array[:reload_points_rad_numpy_array[1]]
@@ -154,7 +154,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
 
         # Составление массива Траектории
         trajectory = np.array(['CTC'] * time.size)
-        if connection[0] and connection[1] is not None:
+        if connection is not [None, None]:
             action = np.array(
                 ['WaitLimit'] * (connection[0]) + ['CyclicUnloading'] * (connection[1] - connection[0]))
         else:
