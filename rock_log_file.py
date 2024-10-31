@@ -118,7 +118,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
     sample_height = 84  # В мм
     sample_diameter = 42  # В мм
     # Перевод в нужные величины
-    sigma_3_MPa = sigma_3 / 1000  # В MPa
+    sigma_3_MPa = sigma / 1000  # В MPa
     deviator = deviator / 1000  # В MPa
 
     def noise(time):
@@ -249,7 +249,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
     rock_dict_without_twice_true['VerticalForce_kN'] += noise_data['VerticalPress_noise']
     rock_dict_without_twice_true['Time'] += noise_data['Time_noise']
 
-    def Twice_True(rock_dict_without_twice_true):
+    def twice_true(rock_dict_without_twice_true):
         """
         Функция возвращает словарь с удвоенными строками на True в Action_Changed
         :param rock_dict_without_twice_true: сформированный словарь начального словаря и словаря девиации
@@ -263,7 +263,6 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
         # Удвоение строк с флагами True. На тестовых данных работает
         for index in range(len(rock_dict_without_twice_true["Action"])):
             if rock_dict_without_twice_true["Action_Changed"][index] == 'True':
-                print(index)
                 for key in rock_dict_without_twice_true:
                     if key == "Action_Changed":
                         new_array = rock_dict_without_twice_true[key][0:index + 1]
@@ -294,11 +293,11 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
             rock_dict_fine[key] = np.array(rock_dict_without_twice_true[key])
         return rock_dict_fine
 
-    rock_dict = Twice_True(rock_dict_without_twice_true)
+    rock_dict = twice_true(rock_dict_without_twice_true)
     return rock_dict
 
 
-def create_excel_from_dict_list(data: list, output_filename: str, sheet_name='Sheet1'):
+def create_excel_from_dict_list(data: dict, output_filename: str, sheet_name='Sheet1'):
     """
     Создаёт Excel по словарю. Возвращает созданный файл
     :param data: Словарь для записи Excel файла
