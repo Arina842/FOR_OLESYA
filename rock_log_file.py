@@ -60,24 +60,29 @@ if reload_points_rad_numpy_array[0] and reload_points_rad_numpy_array[0] is not 
     deviator_numpy_array = deviator_numpy_array[:reload_points_rad_numpy_array[1]]
 
 
-def rock_log_function(strain, strain_rad, deviator, connection, sigma):
+def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
     """
     Функция обрабатывает полученные данные и формирует словарь для записи в Excel
     :param strain: задаётся внешне для функции
     :param strain_rad: задается внешне для функции
     :param deviator: задаётся внешне для функции
     :param connection: задаётся внешне для функции (пока не используется)
-    :param sigma: задаётся внешне для функции
+    :param sigma_3: задаётся внешне для функции
     :return: rock_dict
     """
 
     sample_height = 84  # В мм
     sample_diameter = 42  # В мм
     # Перевод в нужные величины
-    sigma_3_MPa = sigma / 1000  # В MPa
+    sigma_3_MPa = sigma_3 / 1000  # В MPa
     deviator = deviator / 1000  # В MPa
 
-    def noise(time):
+    def noise(time: np.array) -> dict:
+        """
+        Создаёт словарь шума
+        :param time: массив времени
+        :return: data_noise
+        """
         data_noise = {
             'Unload_noise': np.round(np.random.uniform(-1, 1, time.size), 3),
             'PorePressure_noise': np.round(np.random.uniform(0.3, 0.5, time.size), 3),
@@ -87,60 +92,75 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
             'Time_noise': np.round(np.random.uniform(0.5, 0.8, time.size), 2)}
         return data_noise
 
-    def start():
-        # Составление массива Траектории
+    def start_func(sigma_3_MPa: float) -> dict:
+        """
+        Создаёт стартовый словарь
+        :param sigma_3_MPa: сигма 3
+        :return: data
+        """
 
-        time = np.round(np.linspace(0, np.random.uniform(120, 180), 12), 2)
-        trajectory = np.array([''] * (time.size - 7) + ['Consolidation'] * (time.size - 6) + ['CTC'])
-        action_changed = np.array(['True', '', '', 'True', '', 'True', '', '', '', 'True', '', 'True'])
+        # Составление массива Траектории
         size_start = 6
         size_consolidation = 6
+        size_dict = 12
+        time = np.linspace(0, np.random.uniform(120, 180), size_dict)
+        trajectory = np.array([''] * (time.size - 7) + ['Consolidation'] * (time.size - 6) + ['CTC'])
+        action_changed = np.array(['True', '', '', 'True', '', 'True', '', '', '', 'True', '', 'True'])
+
         action = np.array(
             ['', '', '', '', '' 'Start', 'Start', 'LoadStage', 'LoadStage', 'LoadStage', 'LoadStage', 'Wait', 'Wait'])
-        cell_press = np.append(np.round(np.linspace(0, sigma_3_MPa - 0.001, time.size - size_start), 3),
-                               np.round(
-                                   np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
-                                               time.size - size_consolidation), 3))
+        cell_press = np.append(np.linspace(0, sigma_3_MPa - 0.001, time.size - size_start),
+                               np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
+                                           time.size - size_consolidation))
         vert_strain = np.append(
-            np.round(np.linspace(0.001, (np.random.uniform(0.015, 0.023)), time.size - size_start), 3),
-            np.round(np.linspace(0.004, (np.random.uniform(0.017, 0.022)), time.size - size_consolidation), 3))
+            np.linspace(0.001, (np.random.uniform(0.015, 0.023)), time.size - size_start),
+            np.linspace(0.004, (np.random.uniform(0.017, 0.022)), time.size - size_consolidation))
 
         radial_strain = np.append(
-            np.round(np.linspace(0.001, (np.random.uniform(0.002, 0.003)), time.size - size_start), 3),
-            np.round(np.linspace(0.004, (np.random.uniform(0.28, 0.34)), time.size - size_consolidation), 3))
+            np.linspace(0.001, (np.random.uniform(0.002, 0.003)), time.size - size_start),
+            np.linspace(0.004, (np.random.uniform(0.28, 0.34)), time.size - size_consolidation))
 
-        vertical_force = np.round(np.linspace(-0.001, 1, 12), 3)
-        radial_deformation_mm = np.round(radial_strain * sample_diameter, 3)
-        vertical_deformation2_mm = np.round(np.linspace(0.001, 0.014, time.size), 3)
-        vertical_deformation1_mm = np.round(vert_strain * sample_height - vertical_deformation2_mm, 3)
+        vertical_force = np.linspace(-0.001, 1, size_dict)
+        radial_deformation_mm = radial_strain * sample_diameter
+        vertical_deformation2_mm = np.linspace(0.001, 0.014, time.size)
+        vertical_deformation1_mm = vert_strain * sample_height - vertical_deformation2_mm
 
         data = {
-            "Time": time,
+            "Time": np.round(time, 2),
             "Action": action,
             "Action_Changed": action_changed,
             "MeanVerticalDeformation_mm": np.round((vertical_deformation1_mm + vertical_deformation2_mm) / 2, 3),
-            "RadialDeformation_mm": radial_deformation_mm,
-            "CellPress_MPa": cell_press,
-            "VerticalForce_kN": vertical_force,
-            "VerticalStrain": vert_strain,
-            "RadialStrain": radial_strain,
+            "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
+            "CellPress_MPa": np.round(cell_press, 3),
+            "VerticalForce_kN": np.round(vertical_force, 3),
+            "VerticalStrain": np.round(vert_strain, 4),
+            "RadialStrain": np.round(radial_strain, 4),
             "Deviator_MPa": np.full(time.size, 0.0),
             "VerticalDeformationOnDeviatorStage_mm": np.full(time.size, 0.0),
             "RadialDeformationOnDeviatorStage_mm": np.full(time.size, 0.0),
             "VerticalStrainOnDeviatorStage": np.full(time.size, 0.0),
             "RadialStrainOnDeviatorStage": np.full(time.size, 0.0),
-            "VerticalDeformation1_mm": vertical_deformation1_mm,
-            "VerticalDeformation2_mm": vertical_deformation2_mm,
+            "VerticalDeformation1_mm": np.round(vertical_deformation1_mm, 3),
+            "VerticalDeformation2_mm": np.round(vertical_deformation2_mm, 3),
             "Trajectory": trajectory,
         }
 
         return data
 
     # Запись стартовой части словаря
-    start_dict = start()
-    start_time_last_index = (start_dict["Time"].tolist())[-1]
+    start_dict = start_func(sigma_3_MPa)
 
-    def deviator_func(start_dict, strain, strain_rad, deviator, connection):
+    def deviator_func(start_dict: dict, strain: np.array, strain_rad: np.array, deviator: np.array,
+                      connection: list) -> dict:
+        """
+        Создаёт словарь на фазе девиатора
+        :param start_dict: стартовый словарь
+        :param strain: обрабатываемый массив вертикальной абсолютной деформации
+        :param strain_rad: обрабатываемый массив радиальной абсолютной деформации
+        :param deviator: обрабатываемый массив девиатора
+        :param connection: обрабатываемый массив присутствия фазы Cyclic_Unloading
+        :return:data
+        """
         last_index = (start_dict["Time"].tolist())[-1]
         # Среднее значение дельты девиаторы для вычисления времени. Скорость 1 МПа/сек
         deviator_list = deviator.tolist()
@@ -177,13 +197,13 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
             "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
             "CellPress_MPa": np.full(time.size, sigma_3_MPa + 0.001),
             "VerticalForce_kN": np.round(vert_force, 3),
-            "VerticalStrain": np.round(vert_strain, 3),
-            "RadialStrain": np.round(radial_strain, 3),
-            "Deviator_MPa": np.round(deviator, 3),
+            "VerticalStrain": np.round(vert_strain, 4),
+            "RadialStrain": np.round(radial_strain, 4),
+            "Deviator_MPa": np.round(deviator, 4),
             "VerticalDeformationOnDeviatorStage_mm": np.round(strain * sample_height, 3),
             "RadialDeformationOnDeviatorStage_mm": np.round(strain_rad * sample_diameter, 3),
-            "VerticalStrainOnDeviatorStage": np.round(strain, 3),
-            "RadialStrainOnDeviatorStage": np.round(strain_rad, 3),
+            "VerticalStrainOnDeviatorStage": np.round(strain, 4),
+            "RadialStrainOnDeviatorStage": np.round(strain_rad, 4),
             "VerticalDeformation1_mm": np.round(vertical_deformation1_mm, 3),
             "VerticalDeformation2_mm": np.round(vertical_deformation2_mm, 3),
             "Trajectory": trajectory,
@@ -205,7 +225,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma):
     rock_dict_without_twice_true['VerticalForce_kN'] += noise_data['VerticalPress_noise']
     rock_dict_without_twice_true['Time'] += noise_data['Time_noise']
 
-    def twice_true(rock_dict_without_twice_true):
+    def twice_true(rock_dict_without_twice_true: dict) -> dict:
         """
         Функция возвращает словарь с удвоенными строками на True в Action_Changed
         :param rock_dict_without_twice_true: сформированный словарь начального словаря и словаря девиации
