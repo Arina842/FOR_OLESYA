@@ -52,7 +52,7 @@ deviator_numpy_array = np.array([0., 1046.9699, 2093.9398, 3140.9097, 4187.8796,
                                  15704.5485, 16751.5184, 17798.4883, 18845.4582, 19892.4281, 20939.398,
                                  19892.429, 18845.4591, 17798.4892, 16751.5193, 15704.5494, 14657.5795,
                                  13610.6096, 12563.6397, 11516.6698, 10469.6999, 9422.73])
-reload_points_rad_numpy_array = [None, None]
+reload_points_rad_numpy_array = [9,15]
 # Обрезка тестовых данных
 if reload_points_rad_numpy_array[0] and reload_points_rad_numpy_array[0] is not None:
     strain_numpy_array = strain_numpy_array[:reload_points_rad_numpy_array[1]]
@@ -120,7 +120,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
             np.linspace(0.001, (np.random.uniform(0.002, 0.003)), time.size - size_start),
             np.linspace(0.004, (np.random.uniform(0.28, 0.34)), time.size - size_consolidation))
 
-        vertical_force = np.linspace(-0.001, 1, size_dict)
+        vertical_force = np.linspace(-0.001, np.random.uniform(0.6, 0.8), size_dict)
         radial_deformation_mm = radial_strain * sample_diameter
         vertical_deformation2_mm = np.linspace(0.001, 0.014, time.size)
         vertical_deformation1_mm = vert_strain * sample_height - vertical_deformation2_mm
@@ -183,7 +183,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         vert_strain = strain + start_dict['VerticalStrain'].tolist()[-1] + np.random.uniform(0.001, 0.009)
         radial_strain = strain_rad + start_dict['RadialStrain'].tolist()[-1] + np.random.uniform(0.001, 0.02)
         radial_deformation_mm = radial_strain * sample_diameter
-        vert_force = deviator + start_dict["VerticalForce_kN"].tolist()[-1] + np.random.uniform(0.001, 0.009)
+        vert_force = deviator*np.random.uniform(0.50, 0.54)+deviator
         vertical_deformation2_mm = np.linspace(0.014 + np.random.uniform(0.001, 0.01),
                                                ((np.max(vert_strain * sample_height)) / 4), time.size)
 
@@ -309,7 +309,6 @@ try:
     create_excel_from_dict(rock_log, 'example.xlsx')
 except Exception as Ex:
     print('Закройте Excel файл, ошибка: "', Ex, '"')
-
 # для понимания времени работы функций
 finish = datetime.datetime.now()
 print('Время работы: ' + str(finish - start))
