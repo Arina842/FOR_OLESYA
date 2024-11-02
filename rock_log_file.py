@@ -52,7 +52,7 @@ deviator_numpy_array = np.array([0., 1046.9699, 2093.9398, 3140.9097, 4187.8796,
                                  15704.5485, 16751.5184, 17798.4883, 18845.4582, 19892.4281, 20939.398,
                                  19892.429, 18845.4591, 17798.4892, 16751.5193, 15704.5494, 14657.5795,
                                  13610.6096, 12563.6397, 11516.6698, 10469.6999, 9422.73])
-reload_points_rad_numpy_array = [9,15]
+reload_points_rad_numpy_array = [9, 15]
 # Обрезка тестовых данных
 if reload_points_rad_numpy_array[0] and reload_points_rad_numpy_array[0] is not None:
     strain_numpy_array = strain_numpy_array[:reload_points_rad_numpy_array[1]]
@@ -106,30 +106,35 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         time = np.linspace(0, np.random.uniform(120, 180), size_dict)
         trajectory = np.array([''] * (time.size - 7) + ['Consolidation'] * (time.size - 6) + ['CTC'])
         action_changed = np.array(['True', '', '', 'True', '', 'True', '', '', '', 'True', '', 'True'])
-
         action = np.array(
             ['', '', '', '', '' 'Start', 'Start', 'LoadStage', 'LoadStage', 'LoadStage', 'LoadStage', 'Wait', 'Wait'])
         cell_press = np.append(np.linspace(0, sigma_3_MPa - 0.001, time.size - size_start),
                                np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
                                            time.size - size_consolidation))
+
         vert_strain = np.append(
             np.linspace(0.001, (np.random.uniform(0.015, 0.023)), time.size - size_start),
             np.linspace(0.004, (np.random.uniform(0.017, 0.022)), time.size - size_consolidation))
 
-        radial_strain = np.append(
-            np.linspace(0.001, (np.random.uniform(0.002, 0.003)), time.size - size_start),
-            np.linspace(0.004, (np.random.uniform(0.28, 0.34)), time.size - size_consolidation))
+        # Ступенчатое задание vertical_force
+        vertical_force2 = np.append(np.linspace(-0.001, np.random.uniform(1.2, 1.6), size_start - 1),
+                                    [0], axis=0)
 
-        vertical_force = np.linspace(-0.001, np.random.uniform(0.6, 0.8), size_dict)
+        vertical_force1 = np.append(np.linspace(0.001, np.random.uniform(1.8, 2.0), size_consolidation - 1), [0],
+                                    axis=0)
+        vertical_force = np.append(vertical_force2, vertical_force1)
+
+        radial_strain = np.linspace(0.001, np.max(vert_strain * sample_diameter * 0.1), time.size)
         radial_deformation_mm = radial_strain * sample_diameter
         vertical_deformation2_mm = np.linspace(0.001, 0.014, time.size)
         vertical_deformation1_mm = vert_strain * sample_height - vertical_deformation2_mm
+        mean_vertical_deformation_mm = np.linspace(0.001, np.max(vert_strain * sample_height * 0.1), time.size)
 
         data = {
             "Time": np.round(time, 2),
             "Action": action,
             "Action_Changed": action_changed,
-            "MeanVerticalDeformation_mm": np.round((vertical_deformation1_mm + vertical_deformation2_mm) / 2, 3),
+            "MeanVerticalDeformation_mm": np.round(mean_vertical_deformation_mm, 3),
             "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
             "CellPress_MPa": np.round(cell_press, 3),
             "VerticalForce_kN": np.round(vertical_force, 3),
@@ -181,19 +186,22 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
             action = np.array(['WaitLimit'] * time.size)
         action_changed = np.array([''] * (time.size - 1) + ['True'])
         vert_strain = strain + start_dict['VerticalStrain'].tolist()[-1] + np.random.uniform(0.001, 0.009)
-        radial_strain = strain_rad + start_dict['RadialStrain'].tolist()[-1] + np.random.uniform(0.001, 0.02)
-        radial_deformation_mm = radial_strain * sample_diameter
-        vert_force = deviator*np.random.uniform(0.50, 0.54)+deviator
-        vertical_deformation2_mm = np.linspace(0.014 + np.random.uniform(0.001, 0.01),
-                                               ((np.max(vert_strain * sample_height)) / 4), time.size)
+        radial_strain = strain_rad + start_dict['RadialStrain'].tolist()[-1] + np.random.uniform(0.001, 0.020)
+        vert_force = (deviator * np.pi * sample_diameter * (
+                    sample_height + sample_diameter / 2)) / 1000000 + np.random.uniform(0.001, 0.006)
 
-        vertical_deformation1_mm = vert_strain * sample_height - vertical_deformation2_mm
+        radial_deformation_mm = radial_strain * sample_diameter
+        mean_vertical_deformation_mm = (
+                start_dict["MeanVerticalDeformation_mm"].tolist()[-1] + (strain * sample_height) +
+                np.random.uniform(0.001, 0.02))
+        vertical_deformation1_mm = mean_vertical_deformation_mm + np.random.uniform(0.001, 0.1)
+        vertical_deformation2_mm = mean_vertical_deformation_mm - vertical_deformation1_mm
         data = {
             "Time": time,
             "Action": action,
             "Action_Changed": action_changed,
 
-            "MeanVerticalDeformation_mm": np.round((vertical_deformation1_mm + vertical_deformation2_mm) / 2, 3),
+            "MeanVerticalDeformation_mm": np.round(mean_vertical_deformation_mm, 3),
             "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
             "CellPress_MPa": np.full(time.size, sigma_3_MPa + 0.001),
             "VerticalForce_kN": np.round(vert_force, 3),
@@ -222,7 +230,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
     # Запись шума
     noise_data = noise(rock_dict_without_twice_true['Time'])
     rock_dict_without_twice_true['CellPress_MPa'] += noise_data['CellPress_noise']
-    rock_dict_without_twice_true['VerticalForce_kN'] += noise_data['VerticalPress_noise']
+
     rock_dict_without_twice_true['Time'] += noise_data['Time_noise']
 
     def twice_true(rock_dict_without_twice_true: dict) -> dict:
