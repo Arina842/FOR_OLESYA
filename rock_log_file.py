@@ -52,7 +52,7 @@ deviator_numpy_array = np.array([0., 1046.9699, 2093.9398, 3140.9097, 4187.8796,
                                  15704.5485, 16751.5184, 17798.4883, 18845.4582, 19892.4281, 20939.398,
                                  19892.429, 18845.4591, 17798.4892, 16751.5193, 15704.5494, 14657.5795,
                                  13610.6096, 12563.6397, 11516.6698, 10469.6999, 9422.73])
-reload_points_rad_numpy_array = [9, 15]
+reload_points_rad_numpy_array = [None, None]
 # Обрезка тестовых данных
 if reload_points_rad_numpy_array[0] and reload_points_rad_numpy_array[0] is not None:
     strain_numpy_array = strain_numpy_array[:reload_points_rad_numpy_array[1]]
@@ -99,15 +99,19 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         :return: data
         """
 
-        # Составление массива Траектории
+        # Задаваемые данные размерностей
         size_start = 6
         size_consolidation = 6
         size_dict = 12
+
+        # Составление в ручную массивов time,trajectory,action_changed,action
         time = np.linspace(0, np.random.uniform(120, 180), size_dict)
         trajectory = np.array([''] * (time.size - 7) + ['Consolidation'] * (time.size - 6) + ['CTC'])
         action_changed = np.array(['True', '', '', 'True', '', 'True', '', '', '', 'True', '', 'True'])
         action = np.array(
             ['', '', '', '', '' 'Start', 'Start', 'LoadStage', 'LoadStage', 'LoadStage', 'LoadStage', 'Wait', 'Wait'])
+
+        # Составление остальных массивов словаря
         cell_press = np.append(np.linspace(0, sigma_3_MPa - 0.001, time.size - size_start),
                                np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
                                            time.size - size_consolidation))
@@ -116,19 +120,20 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
             np.linspace(0.001, (np.random.uniform(0.015, 0.023)), time.size - size_start),
             np.linspace(0.004, (np.random.uniform(0.017, 0.022)), time.size - size_consolidation))
 
-        # Ступенчатое задание vertical_force
         vertical_force2 = np.append(np.linspace(-0.001, np.random.uniform(1.2, 1.6), size_start - 1),
-                                    [0], axis=0)
+                                    np.linspace(0.000, np.random.uniform(1.8, 2.0), size_consolidation))
+        vertical_force = np.append(vertical_force2, [0], axis=0)
 
-        vertical_force1 = np.append(np.linspace(0.001, np.random.uniform(1.8, 2.0), size_consolidation - 1), [0],
-                                    axis=0)
-        vertical_force = np.append(vertical_force2, vertical_force1)
-
-        radial_strain = np.linspace(0.001, np.max(vert_strain * sample_diameter * 0.1), time.size)
+        radial_strain = np.linspace(0.001, np.max(vert_strain * sample_diameter) * 0.1, time.size)
         radial_deformation_mm = radial_strain * sample_diameter
-        vertical_deformation2_mm = np.linspace(0.001, 0.014, time.size)
-        vertical_deformation1_mm = vert_strain * sample_height - vertical_deformation2_mm
-        mean_vertical_deformation_mm = np.linspace(0.001, np.max(vert_strain * sample_height * 0.1), time.size)
+
+        # mean_vertical_deformation_mm - среднее от vertical_deformation1_mm и vertical_deformation2_mm
+        mean_vertical_deformation_mm = np.linspace(np.random.uniform(0.002, 0.02),
+                                                   np.max(vert_strain * sample_height * 0.1),
+                                                   time.size) + np.random.uniform(0.001, 0.01, time.size)
+        random = np.random.uniform(0.001, 0.01, time.size)
+        vertical_deformation1_mm = mean_vertical_deformation_mm + random
+        vertical_deformation2_mm = mean_vertical_deformation_mm - random
 
         data = {
             "Time": np.round(time, 2),
@@ -166,8 +171,8 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         :param connection: обрабатываемый массив присутствия фазы Cyclic_Unloading
         :return:data
         """
-        last_index = (start_dict["Time"].tolist())[-1]
-        # Среднее значение дельты девиаторы для вычисления времени. Скорость 1 МПа/сек
+
+        # Среднее значение дельты девиатора для вычисления времени. Скорость 1 МПа/сек
         deviator_list = deviator.tolist()
         deviator_delta = []
         for i in range(5):
@@ -175,9 +180,9 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         # Так как массив и с отрицательными значениями, взяты первые значение, по ним вычислено среднее
         deviator_delta = statistics.mean(deviator_delta)
 
-        time = np.round(np.linspace(last_index + 1, last_index + (deviator_delta * deviator.size), deviator.size), 2)
-
-        # Составление массива Траектории
+        # Составление массивов time,trajectory,action_changed,action
+        time = np.round(np.linspace((start_dict["Time"].tolist())[-1] + 1, (start_dict["Time"].tolist())[-1]
+                                    + (deviator_delta * deviator.size), deviator.size), 2)
         trajectory = np.array(['CTC'] * time.size)
         if connection[0] and connection[1] is not None:
             action = np.array(
@@ -185,22 +190,27 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         else:
             action = np.array(['WaitLimit'] * time.size)
         action_changed = np.array([''] * (time.size - 1) + ['True'])
+
+        # Составление остальных массивов словаря
         vert_strain = strain + start_dict['VerticalStrain'].tolist()[-1] + np.random.uniform(0.001, 0.009)
         radial_strain = strain_rad + start_dict['RadialStrain'].tolist()[-1] + np.random.uniform(0.001, 0.020)
-        vert_force = (deviator * np.pi * sample_diameter * (
-                    sample_height + sample_diameter / 2)) / 1000000 + np.random.uniform(0.001, 0.006)
 
+        # vert_force рассчитывается как девиатор умноженный на площадь образца
+        vert_force = (deviator * np.pi * sample_diameter * (
+                sample_height + sample_diameter / 2)) / 1000000 + np.random.uniform(0.001, 0.006)
         radial_deformation_mm = radial_strain * sample_diameter
+
+        # mean_vertical_deformation_mm - среднее от vertical_deformation1_mm и vertical_deformation2_mm
         mean_vertical_deformation_mm = (
                 start_dict["MeanVerticalDeformation_mm"].tolist()[-1] + (strain * sample_height) +
-                np.random.uniform(0.001, 0.02))
-        vertical_deformation1_mm = mean_vertical_deformation_mm + np.random.uniform(0.001, 0.1)
-        vertical_deformation2_mm = mean_vertical_deformation_mm - vertical_deformation1_mm
+                np.random.uniform(0.001, 0.01, time.size))
+        random = np.random.uniform(0.001, 0.01, time.size)
+        vertical_deformation1_mm = mean_vertical_deformation_mm + random
+        vertical_deformation2_mm = mean_vertical_deformation_mm - random
         data = {
             "Time": time,
             "Action": action,
             "Action_Changed": action_changed,
-
             "MeanVerticalDeformation_mm": np.round(mean_vertical_deformation_mm, 3),
             "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
             "CellPress_MPa": np.full(time.size, sigma_3_MPa + 0.001),
@@ -230,7 +240,6 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
     # Запись шума
     noise_data = noise(rock_dict_without_twice_true['Time'])
     rock_dict_without_twice_true['CellPress_MPa'] += noise_data['CellPress_noise']
-
     rock_dict_without_twice_true['Time'] += noise_data['Time_noise']
 
     def twice_true(rock_dict_without_twice_true: dict) -> dict:
