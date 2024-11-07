@@ -3,8 +3,7 @@ import os
 import pandas as pd
 import datetime
 import statistics
-import matplotlib.pyplot as plt
-import math as m
+
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
@@ -25,35 +24,39 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 то девиатор заканчивается action - Waitlimit , есть reload_points_rad_numpy_array равно двум числам,
 то action заканчивается на Cyclic_Unloading
 
-Функция twice_true Обрабатывает конечный словарь и добавляет дублирование строк.
+Функция twice_true Обрабатывает словарь и добавляет дублирование строк.
 Функция create_excel_from_dict опциональна. Создаёт excel файл для удобной проверки работы функции
 """
 
 
 def exponent(x, amplitude, slant):
-    """Функция построения экспоненты
-        Входные параметры: x - значение или массив абсцисс,
-                           amplitude - значение верхней асимптоты,
-                           slant - приведенный угол наклона (пологая - 1...3, резкая - 10...20 )"""
+    """
+    Функция построения экспоненты
+    :param x: значение или массив абсцисс
+    :param amplitude: значение верхней асимптоты
+    :param slant: приведенный угол наклона (пологая - 1...3, резкая - 10...20)
+    :return: amplitude * (-np.e ** (-k * x) + 1)
+    """
 
     k = slant / (max(x))
+
     return amplitude * (-np.e ** (-k * x) + 1)
 
 
 def create_stabil_exponent(x, amplituda, slant, y0=0):
-    ''' Функция построение смещенной по оси Y на y0 экспоненты, достигающей точно значения y0+amplituda в последней
+    """
+    Функция построение смещенной по оси Y на y0 экспоненты, достигающей точно значения y0+amplituda в последней
     точке.
     К экспоненте прибавляется функция прямой пропорциональности, которая в начале равна нулю, а в последней точке
-    приобретает значение, которое необходимо прибавить к экспоненете для достижения точного значения
+    приобретает значение, которое необходимо прибавить к экспоненте для достижения точного значения.
     Использует функцию exponent(x, amplituda, slant)
 
     :param x: Одномерный массив от нуля
     :param amplituda: Величина, на которую изменится искомая величина по экспоненте
-    :param slant: Приведенный угол наклона экспоненты (пологая - 1...3, резкая - 10...20, прямая - ноль)
+    :param slant: Приведенный угол наклона экспоненты (пологая - 1...3, резкая - 10...20, прямая - 0)
     :param y0: Начальное значение искомой величины
-
-    :return: Одномерный нампаевский массив значений изменяющихся по экспоненте от значения y0 на amplituda
-    '''
+    :return: y2 - Одномерный numpy массив значений изменяющихся по экспоненте от значения y0 на amplituda
+    """
     x = np.array(x)
     if x[0] != 0:
         x -= x[0]
@@ -89,7 +92,7 @@ deviator_numpy_array = np.array([0., 1046.9699, 2093.9398, 3140.9097, 4187.8796,
                                  15704.5485, 16751.5184, 17798.4883, 18845.4582, 19892.4281, 20939.398,
                                  19892.429, 18845.4591, 17798.4892, 16751.5193, 15704.5494, 14657.5795,
                                  13610.6096, 12563.6397, 11516.6698, 10469.6999, 9422.73])
-reload_points_rad_numpy_array = [ None,  None]
+reload_points_rad_numpy_array = [None, None]
 # Обрезка тестовых данных
 if reload_points_rad_numpy_array[0] and reload_points_rad_numpy_array[0] is not None:
     strain_numpy_array = strain_numpy_array[:reload_points_rad_numpy_array[1]]
@@ -157,36 +160,22 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         action = np.array(
             ['', '', '', '', '' 'Start', 'Start', 'LoadStage', 'LoadStage', 'LoadStage', 'LoadStage', 'Wait', 'Wait'])
         noise_data = noise(time)
-        # Составление остальных массивов словаря
-        # cell_press = np.append([(m.sqrt(x)) for x in (np.linspace(0.001, sigma_3_MPa - 0.001, size_start))],
-        #                        np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
-        #                                    time.size - size_consolidation))
+
         cell_press = np.append(create_stabil_exponent(time[:(size_start)], sigma_3_MPa - 0.001, 5, y0=0),
                                np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
                                            time.size - size_consolidation))
         vert_strain = np.linspace(np.random.uniform(0.001, 0.04), np.max(strain[1:]) * 0.1, time.size)
-        print(np.max(strain[1:]) * 0.1)
-        # vertical_force2 = np.append(np.linspace(0.001, np.random.uniform(1.2, 1.6), size_start - 1),
-        #                             np.linspace(0.000, np.random.uniform(1.8, 2.0), size_consolidation))
-        # vertical_force = np.append(vertical_force2, [0], axis=0)
-        # vertical_force1 = np.append(
-        #     [(m.sqrt(x)) for x in (np.linspace(0.001, np.random.uniform(1.44, 2.56), size_start - 1))],
-        #     [(m.sqrt(x)) for x in (np.linspace(0.000, np.random.uniform(3.24, 4.0), size_start))])
-
         vertical_force1 = np.append(
             create_stabil_exponent(time[:(size_start - 1)], np.random.uniform(1.2, 1.6), 5,
                                    y0=np.random.uniform(0.001, 0.04)),
             create_stabil_exponent(time[:(size_consolidation)], np.random.uniform(1.8, 2.0), 6, y0=0))
         vertical_force = np.append(vertical_force1, [0], axis=0)
-        # plt.plot(time, vertical_force)
-        # plt.show()
         radial_strain = np.linspace(np.random.uniform(0.001, 0.04), np.max(strain_rad[1:]) * 0.100, time.size)
-        print(np.max(strain_rad[1:])* 0.1)
         radial_deformation_mm = radial_strain * sample_diameter
 
         # mean_vertical_deformation_mm - среднее от vertical_deformation1_mm и vertical_deformation2_mm
         mean_vertical_deformation_mm = np.linspace(np.random.uniform(0.002, 0.02),
-                                                   np.max(strain * sample_height)* 0.1,
+                                                   np.max(strain * sample_height) * 0.1,
                                                    time.size) + noise_data['VerticalDeformation_noise']
         random = noise_data['VerticalDeformation_noise']
         vertical_deformation1_mm = mean_vertical_deformation_mm + random
@@ -267,9 +256,9 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         random = np.random.uniform(0.001, 0.01, time.size)
         vertical_deformation1_mm = mean_vertical_deformation_mm + random
         vertical_deformation2_mm = mean_vertical_deformation_mm - random
-        vertical_deformation_on_deviatorstage_mm = strain * sample_height
-        vertical_deformation_on_deviatorstage_mm[1:] += noise_data['VerticalDeformation_noise'][1:]
+        vertical_deformation_on_deviator_stage_mm = strain * sample_height
 
+        vertical_deformation_on_deviator_stage_mm[1:] += noise_data['VerticalDeformation_noise'][1:]
         deviator[1:] += noise_data['Deviator_noise'][1:]
         data = {
             "Time": np.round(time + noise_data['Time_noise'], 2),
@@ -282,7 +271,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
             "VerticalStrain": np.round(vert_strain, 4),
             "RadialStrain": np.round(radial_strain, 4),
             "Deviator_MPa": np.round(deviator, 4),
-            "VerticalDeformationOnDeviatorStage_mm": np.round(vertical_deformation_on_deviatorstage_mm, 3),
+            "VerticalDeformationOnDeviatorStage_mm": np.round(vertical_deformation_on_deviator_stage_mm, 3),
             "RadialDeformationOnDeviatorStage_mm": np.round(strain_rad * sample_diameter, 3),
             "VerticalStrainOnDeviatorStage": np.round(strain, 4),
             "RadialStrainOnDeviatorStage": np.round(strain_rad, 4),
