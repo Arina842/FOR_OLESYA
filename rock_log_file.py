@@ -3,7 +3,8 @@ import os
 import pandas as pd
 import datetime
 import statistics
-
+import matplotlib.pyplot as plt
+import math as m
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
@@ -27,7 +28,37 @@ from openpyxl.utils.dataframe import dataframe_to_rows
 Функция twice_true Обрабатывает конечный словарь и добавляет дублирование строк.
 Функция create_excel_from_dict опциональна. Создаёт excel файл для удобной проверки работы функции
 """
+def exponent(x, amplitude, slant):
+    """Функция построения экспоненты
+        Входные параметры: x - значение или массив абсцисс,
+                           amplitude - значение верхней асимптоты,
+                           slant - приведенный угол наклона (пологая - 1...3, резкая - 10...20 )"""
 
+    k = slant/(max(x))
+    return amplitude*(-np.e**(-k*x) + 1)
+def create_stabil_exponent(x, amplituda, slant, y0=0):
+    ''' Функция построение смещенной по оси Y на y0 экспоненты, достигающей точно значения y0+amplituda в последней
+    точке.
+    К экспоненте прибавляется функция прямой пропорциональности, которая в начале равна нулю, а в последней точке
+    приобретает значение, которое необходимо прибавить к экспоненете для достижения точного значения
+    Использует функцию exponent(x, amplituda, slant)
+
+    :param x: Одномерный массив от нуля
+    :param amplituda: Величина, на которую изменится искомая величина по экспоненте
+    :param slant: Приведенный угол наклона экспоненты (пологая - 1...3, резкая - 10...20, прямая - ноль)
+    :param y0: Начальное значение искомой величины
+
+    :return: Одномерный нампаевский массив значений изменяющихся по экспоненте от значения y0 на amplituda
+    '''
+    x = np.array(x)
+    if x[0] != 0:
+        x -= x[0]
+
+    y = exponent(x, amplituda, slant) + y0
+    k_add = (y0 + amplituda - y[-1]) / (x[-1] - x[0])
+    y2 = y + k_add * (x - x[0])
+
+    return y2
 start = datetime.datetime.now()
 # Тестовые данные
 sigma_3 = 1000.0
@@ -52,7 +83,7 @@ deviator_numpy_array = np.array([0., 1046.9699, 2093.9398, 3140.9097, 4187.8796,
                                  15704.5485, 16751.5184, 17798.4883, 18845.4582, 19892.4281, 20939.398,
                                  19892.429, 18845.4591, 17798.4892, 16751.5193, 15704.5494, 14657.5795,
                                  13610.6096, 12563.6397, 11516.6698, 10469.6999, 9422.73])
-reload_points_rad_numpy_array = [None, None]
+reload_points_rad_numpy_array = [9, 16]
 # Обрезка тестовых данных
 if reload_points_rad_numpy_array[0] and reload_points_rad_numpy_array[0] is not None:
     strain_numpy_array = strain_numpy_array[:reload_points_rad_numpy_array[1]]
@@ -70,26 +101,35 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
     :param sigma_3: задаётся внешне для функции
     :return: rock_dict
     """
-
+    # Диаметр и высота образца
     sample_height = 84  # В мм
     sample_diameter = 42  # В мм
+
     # Перевод в нужные величины
     sigma_3_MPa = sigma_3 / 1000  # В MPa
     deviator = deviator / 1000  # В MPa
-
+    # plt.plot(np.linspace(1,50,strain.size),strain)
+    # plt.show()
     def noise(time: np.array) -> dict:
         """
         Создаёт словарь шума
         :param time: массив времени
         :return: data_noise
         """
+
         data_noise = {
             'Unload_noise': np.round(np.random.uniform(-1, 1, time.size), 3),
             'PorePressure_noise': np.round(np.random.uniform(0.3, 0.5, time.size), 3),
             'CellPress_noise': np.round(np.random.uniform(-0.1, 0.1, time.size), 3),
             'VerticalPress_noise': np.round(np.random.uniform(-0.1, 0.1, time.size), 3),
             'b_CVI': np.round(np.random.uniform(0.95, 0.98, time.size), 3),
-            'Time_noise': np.round(np.random.uniform(0.5, 0.8, time.size), 2)}
+            'Time_noise': np.round(np.random.uniform(0.5, 0.8, time.size), 2),
+            "Deviator_noise": np.random.uniform(-1, 1, time.size),
+            'VerticalDeformation_noise': np.random.uniform(0.005, 0.01, time.size),
+
+
+
+        }
         return data_noise
 
     def start_func(sigma_3_MPa: float) -> dict:
@@ -104,44 +144,59 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         size_consolidation = 6
         size_dict = 12
 
+
+
         # Составление в ручную массивов time,trajectory,action_changed,action
         time = np.linspace(0, np.random.uniform(120, 180), size_dict)
-        trajectory = np.array([''] * (time.size - 7) + ['Consolidation'] * (time.size - 6) + ['CTC'])
+        trajectory = np.array(
+            [''] * (size_dict - size_start - 1) + ['Consolidation'] * (size_dict - size_consolidation) + ['CTC'])
         action_changed = np.array(['True', '', '', 'True', '', 'True', '', '', '', 'True', '', 'True'])
         action = np.array(
             ['', '', '', '', '' 'Start', 'Start', 'LoadStage', 'LoadStage', 'LoadStage', 'LoadStage', 'Wait', 'Wait'])
-
+        noise_data = noise(time)
         # Составление остальных массивов словаря
-        cell_press = np.append(np.linspace(0, sigma_3_MPa - 0.001, time.size - size_start),
-                               np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
+        # cell_press = np.append([(m.sqrt(x)) for x in (np.linspace(0.001, sigma_3_MPa - 0.001, size_start))],
+        #                        np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
+        #                                    time.size - size_consolidation))
+        cell_press = np.append(create_stabil_exponent(time[:(size_start)], sigma_3_MPa - 0.001, 5, y0=0),np.linspace(sigma_3_MPa + 0.0001, sigma_3_MPa + (np.random.uniform(0.001, 0.006)),
                                            time.size - size_consolidation))
-
         vert_strain = np.append(
             np.linspace(0.001, (np.random.uniform(0.015, 0.023)), time.size - size_start),
-            np.linspace(0.004, (np.random.uniform(0.017, 0.022)), time.size - size_consolidation))
+            np.linspace(0.023, (np.random.uniform(0.24, 0.040)), time.size - size_consolidation))
 
-        vertical_force2 = np.append(np.linspace(-0.001, np.random.uniform(1.2, 1.6), size_start - 1),
-                                    np.linspace(0.000, np.random.uniform(1.8, 2.0), size_consolidation))
-        vertical_force = np.append(vertical_force2, [0], axis=0)
+        # vertical_force2 = np.append(np.linspace(0.001, np.random.uniform(1.2, 1.6), size_start - 1),
+        #                             np.linspace(0.000, np.random.uniform(1.8, 2.0), size_consolidation))
+        # vertical_force = np.append(vertical_force2, [0], axis=0)
+        # vertical_force1 = np.append(
+        #     [(m.sqrt(x)) for x in (np.linspace(0.001, np.random.uniform(1.44, 2.56), size_start - 1))],
+        #     [(m.sqrt(x)) for x in (np.linspace(0.000, np.random.uniform(3.24, 4.0), size_start))])
 
+        vertical_force1 = np.append(
+            create_stabil_exponent(time[:(size_start - 1)], np.random.uniform(1.2, 1.6),5, y0= np.random.uniform(0.001, 0.04)),
+            create_stabil_exponent(time[:(size_consolidation)], np.random.uniform(1.8, 2.0),6, y0=0))
+        vertical_force = np.append(vertical_force1, [0], axis=0)
+        # plt.plot(time, vertical_force)
+        # plt.show()
         radial_strain = np.linspace(0.001, np.max(vert_strain * sample_diameter) * 0.1, time.size)
         radial_deformation_mm = radial_strain * sample_diameter
 
         # mean_vertical_deformation_mm - среднее от vertical_deformation1_mm и vertical_deformation2_mm
         mean_vertical_deformation_mm = np.linspace(np.random.uniform(0.002, 0.02),
                                                    np.max(vert_strain * sample_height * 0.1),
-                                                   time.size) + np.random.uniform(0.001, 0.01, time.size)
-        random = np.random.uniform(0.001, 0.01, time.size)
+                                                   time.size) + noise_data['VerticalDeformation_noise']
+        random = noise_data['VerticalDeformation_noise']
         vertical_deformation1_mm = mean_vertical_deformation_mm + random
         vertical_deformation2_mm = mean_vertical_deformation_mm - random
 
+
+
         data = {
-            "Time": np.round(time, 2),
+            "Time": np.round(time+noise_data['Time_noise'],2),
             "Action": action,
             "Action_Changed": action_changed,
             "MeanVerticalDeformation_mm": np.round(mean_vertical_deformation_mm, 3),
             "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
-            "CellPress_MPa": np.round(cell_press, 3),
+            "CellPress_MPa": np.round(cell_press+noise_data['CellPress_noise'], 3),
             "VerticalForce_kN": np.round(vertical_force, 3),
             "VerticalStrain": np.round(vert_strain, 4),
             "RadialStrain": np.round(radial_strain, 4),
@@ -190,6 +245,7 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         else:
             action = np.array(['WaitLimit'] * time.size)
         action_changed = np.array([''] * (time.size - 1) + ['True'])
+        noise_data = noise(time)
 
         # Составление остальных массивов словаря
         vert_strain = strain + start_dict['VerticalStrain'].tolist()[-1] + np.random.uniform(0.001, 0.009)
@@ -198,6 +254,8 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         # vert_force рассчитывается как девиатор умноженный на площадь образца
         vert_force = (deviator * np.pi * sample_diameter * (
                 sample_height + sample_diameter / 2)) / 1000000 + np.random.uniform(0.001, 0.006)
+        vert_force[1:]+=noise_data['VerticalPress_noise'][1:]
+
         radial_deformation_mm = radial_strain * sample_diameter
 
         # mean_vertical_deformation_mm - среднее от vertical_deformation1_mm и vertical_deformation2_mm
@@ -207,18 +265,22 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
         random = np.random.uniform(0.001, 0.01, time.size)
         vertical_deformation1_mm = mean_vertical_deformation_mm + random
         vertical_deformation2_mm = mean_vertical_deformation_mm - random
+        vertical_deformation_on_deviatorstage_mm=strain * sample_height
+        vertical_deformation_on_deviatorstage_mm[1:]+=noise_data['VerticalDeformation_noise'][1:]
+        
+        deviator[1:] += noise_data['Deviator_noise'][1:]
         data = {
-            "Time": time,
+            "Time": np.round(time+noise_data['Time_noise'],2),
             "Action": action,
             "Action_Changed": action_changed,
             "MeanVerticalDeformation_mm": np.round(mean_vertical_deformation_mm, 3),
             "RadialDeformation_mm": np.round(radial_deformation_mm, 3),
-            "CellPress_MPa": np.full(time.size, sigma_3_MPa + 0.001),
+            "CellPress_MPa": np.round(np.full(time.size, sigma_3_MPa + 0.001)+noise_data['CellPress_noise'],3),
             "VerticalForce_kN": np.round(vert_force, 3),
             "VerticalStrain": np.round(vert_strain, 4),
             "RadialStrain": np.round(radial_strain, 4),
             "Deviator_MPa": np.round(deviator, 4),
-            "VerticalDeformationOnDeviatorStage_mm": np.round(strain * sample_height, 3),
+            "VerticalDeformationOnDeviatorStage_mm": np.round(vertical_deformation_on_deviatorstage_mm, 3),
             "RadialDeformationOnDeviatorStage_mm": np.round(strain_rad * sample_diameter, 3),
             "VerticalStrainOnDeviatorStage": np.round(strain, 4),
             "RadialStrainOnDeviatorStage": np.round(strain_rad, 4),
@@ -237,10 +299,14 @@ def rock_log_function(strain, strain_rad, deviator, connection, sigma_3):
     for key in start_dict:
         rock_dict_without_twice_true[key] = np.append(start_dict[key], deviator_dict[key])
 
-    # Запись шума
-    noise_data = noise(rock_dict_without_twice_true['Time'])
-    rock_dict_without_twice_true['CellPress_MPa'] += noise_data['CellPress_noise']
-    rock_dict_without_twice_true['Time'] += noise_data['Time_noise']
+    # # Запись шума
+    # noise_data = noise(rock_dict_without_twice_true['Time'])
+    # rock_dict_without_twice_true['CellPress_MPa'] += noise_data['CellPress_noise']
+    # rock_dict_without_twice_true['Time'] += noise_data['Time_noise']
+    # rock_dict_without_twice_true['VerticalForce_kN'][12:] += noise_data['VerticalPress_noise'][12:]
+    # rock_dict_without_twice_true['VerticalDeformation1_mm']+=noise_data['VerticalDeformation_noise']
+    # rock_dict_without_twice_true['VerticalDeformation2_mm'] += noise_data['VerticalDeformation_noise']
+    # rock_dict_without_twice_true['MeanVerticalDeformation_mm'] += noise_data['VerticalDeformation_noise']
 
     def twice_true(rock_dict_without_twice_true: dict) -> dict:
         """
